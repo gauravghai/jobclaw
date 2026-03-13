@@ -1,5 +1,5 @@
 {
-  "name": "jobglobe",
+  "name": "jobclaw",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,9 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1008.0",
+    "mongodb": "^7.1.0",
     "next": "16.1.6",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "react-globe.gl": "^2.37.0",
+    "three": "^0.183.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
