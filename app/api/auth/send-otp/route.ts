@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { randomInt, createHash } from "crypto";
 import { getDb } from "@/lib/mongodb";
@@ -21,7 +22,7 @@ function hashOtp(otp: string): string {
   return createHash("sha256").update(otp).digest("hex");
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { email } = (await request.json()) as { email: string };
 
@@ -32,6 +33,14 @@ export async function POST(request: Request) {
       );
     }
 
+    // Capture user details from request headers
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+    const referer = request.headers.get("referer") || "";
+
     const db = await getDb();
     const usersCollection = db.collection("users");
 
@@ -41,6 +50,11 @@ export async function POST(request: Request) {
       verified: true,
     });
     if (existingUser) {
+      // Update last seen on return visits
+      await usersCollection.updateOne(
+        { email: email.toLowerCase() },
+        { $set: { lastSeenAt: new Date(), lastIp: ip, lastUserAgent: userAgent } }
+      );
       return NextResponse.json({ alreadyVerified: true });
     }
 
@@ -70,12 +84,17 @@ export async function POST(request: Request) {
           otpExpiresAt: expiresAt,
           failedAttempts: 0,
           updatedAt: new Date(),
+          lastIp: ip,
+          lastUserAgent: userAgent,
         },
         $inc: { otpAttempts: 1 },
         $setOnInsert: {
           email: email.toLowerCase(),
           verified: false,
           createdAt: new Date(),
+          signupIp: ip,
+          signupUserAgent: userAgent,
+          signupReferer: referer,
         },
       },
       { upsert: true }

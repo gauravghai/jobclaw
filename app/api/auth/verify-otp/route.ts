@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createHash } from "crypto";
 import { getDb } from "@/lib/mongodb";
 
@@ -8,7 +9,7 @@ function hashOtp(otp: string): string {
   return createHash("sha256").update(otp).digest("hex");
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const { email, otp } = (await request.json()) as {
       email: string;
@@ -67,11 +68,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // Capture user details
+    const ip =
+      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-real-ip") ||
+      "unknown";
+    const userAgent = request.headers.get("user-agent") || "unknown";
+
     // Mark as verified
     await usersCollection.updateOne(
       { email: email.toLowerCase() },
       {
-        $set: { verified: true, verifiedAt: new Date() },
+        $set: {
+          verified: true,
+          verifiedAt: new Date(),
+          lastLoginAt: new Date(),
+          lastLoginIp: ip,
+          lastLoginUserAgent: userAgent,
+        },
         $unset: { otpHash: "", otpExpiresAt: "", failedAttempts: "", otpAttempts: "" },
       }
     );
