@@ -26,6 +26,7 @@ export async function GET() {
               job_employment_type: 1,
               job_is_remote: 1,
               experience_level: 1,
+              skills: 1,
             },
           }
         )

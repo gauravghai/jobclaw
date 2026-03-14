@@ -41,6 +41,16 @@ export interface JobPin {
   job_employment_type: string;
   job_is_remote: boolean;
   experience_level: string;
+  skills: string[];
+}
+
+export interface ResumeData {
+  name: string;
+  skills: string[];
+  experience_years: number;
+  experience_level: string;
+  education: string;
+  summary: string;
 }
 
 export interface CountryJobCount {

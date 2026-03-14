@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useCallback } from "react";
+import { useReducer, useCallback, useRef, useEffect } from "react";
 import { Job, JobPin, SidebarMode } from "@/lib/types";
 import { FilterState } from "@/components/Filter/FilterDialog";
 
@@ -60,6 +60,10 @@ function reducer(state: GlobeState, action: Action): GlobeState {
   }
 }
 
+function sortJobs(jobs: Job[]): Job[] {
+  return [...jobs].sort((a, b) => (b.job_posted_at_timestamp || 0) - (a.job_posted_at_timestamp || 0));
+}
+
 function applyFiltersToJobs(jobs: Job[], filters: FilterState): Job[] {
   let result = jobs;
 
@@ -87,6 +91,16 @@ function applyFiltersToJobs(jobs: Job[], filters: FilterState): Job[] {
 
 export function useGlobeState(filters: FilterState) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  // Store raw (unfiltered) country jobs so we can re-filter when filters change
+  const rawCountryJobsRef = useRef<Job[]>([]);
+
+  // Re-apply filters when filters change while sidebar is showing country jobs
+  useEffect(() => {
+    if (state.sidebarMode === "country-list" && rawCountryJobsRef.current.length > 0) {
+      const filtered = applyFiltersToJobs(rawCountryJobsRef.current, filters);
+      dispatch({ type: "SET_COUNTRY_JOBS", jobs: sortJobs(filtered) });
+    }
+  }, [filters, state.sidebarMode]);
 
   const selectCountry = useCallback(
     async (country: string, countryName: string) => {
@@ -95,7 +109,8 @@ export function useGlobeState(filters: FilterState) {
         const res = await fetch(`/api/jobs/${country}`);
         const data = await res.json();
         const jobs: Job[] = data.jobs || [];
-        dispatch({ type: "SET_COUNTRY_JOBS", jobs: applyFiltersToJobs(jobs, filters) });
+        rawCountryJobsRef.current = jobs;
+        dispatch({ type: "SET_COUNTRY_JOBS", jobs: sortJobs(applyFiltersToJobs(jobs, filters)) });
       } catch {
         dispatch({ type: "SET_LOADING", loading: false });
       }
@@ -140,7 +155,10 @@ export function useGlobeState(filters: FilterState) {
 
   const backToList = useCallback(() => dispatch({ type: "BACK_TO_LIST" }), []);
   const closeSidebar = useCallback(
-    () => dispatch({ type: "CLOSE_SIDEBAR" }),
+    () => {
+      rawCountryJobsRef.current = [];
+      dispatch({ type: "CLOSE_SIDEBAR" });
+    },
     []
   );
 
